@@ -2,26 +2,21 @@ package eu.cloudifacturing.www.nexus.internal.resources;
 
 import eu.cloudifacturing.www.nexus.internal.api.CustomMetadataXO;
 import eu.cloudifacturing.www.nexus.internal.resources.doc.CustomMetadataResourceDoc;
-import jdk.nashorn.internal.objects.annotations.Getter;
 import org.sonatype.goodies.common.ComponentSupport;
 import org.sonatype.nexus.common.entity.DetachedEntityId;
 import org.sonatype.nexus.repository.Repository;
+import org.sonatype.nexus.repository.browse.BrowseService;
 import org.sonatype.nexus.repository.manager.RepositoryManager;
-import org.sonatype.nexus.repository.rest.internal.resources.AssetsResource;
-import org.sonatype.nexus.repository.rest.internal.resources.ComponentsResource;
 import org.sonatype.nexus.repository.storage.Asset;
 import org.sonatype.nexus.repository.storage.AssetEntityAdapter;
 import org.sonatype.nexus.repository.storage.AssetStore;
 import org.sonatype.nexus.rest.Resource;
-import org.sonatype.nexus.repository.browse.BrowseService;
 
 import javax.inject.Inject;
 import javax.inject.Named;
 import javax.inject.Singleton;
 import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
-import javax.xml.soap.Detail;
-
 import java.util.Base64;
 import java.util.Map;
 
@@ -73,7 +68,7 @@ public class CustomMetadataResource
     @Path("/{id}")
     @Consumes(MediaType.APPLICATION_JSON)
     @Override
-    public CustomMetadataXO updateCustomMetadataById(@PathParam("id") String id, final Map<String, String> metadata) {
+    public CustomMetadataXO updateCustomMetadataById(@PathParam("id") final String id, final Map<String, String> metadata) {
         String decoded = new String(Base64.getUrlDecoder().decode(id));
         String assetId = decoded.split(":")[1];
         String repositoryId = decoded.split(":")[0];
@@ -82,6 +77,20 @@ public class CustomMetadataResource
         metadata.forEach((k,v)->{
             asset.attributes().child("metadata").set(k,v);
         });
+        assetStore.save(asset);
+        return CustomMetadataXO.fromAssetMetadata(asset,repository);
+    }
+
+    @DELETE
+    @Path("/{id}")
+    @Override
+    public CustomMetadataXO deleteCustomMetadataByIdKey(@PathParam("id") final String id, @QueryParam("key") final String key) {
+        String decoded = new String(Base64.getUrlDecoder().decode(id));
+        String assetId = decoded.split(":")[1];
+        String repositoryId = decoded.split(":")[0];
+        Repository repository = getRepository(repositoryId);
+        Asset asset = getAsset(id, repository, new DetachedEntityId(assetId));
+        asset.attributes().child("metadata").remove(key);
         assetStore.save(asset);
         return CustomMetadataXO.fromAssetMetadata(asset,repository);
     }

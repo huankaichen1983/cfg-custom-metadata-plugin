@@ -14,4 +14,7 @@ public interface CustomMetadataResourceDoc {
 
     @ApiOperation("Add/Update artifact metadatas by ID")
     CustomMetadataXO updateCustomMetadataById(@ApiParam(value = "ID of the artifact") final String id, final Map<String, String> metadata);
+
+    @ApiOperation("Delete artifact metadatas by ID & Key")
+    CustomMetadataXO deleteCustomMetadataByIdKey(@ApiParam(value = "ID of the artifact") final String id, final String key);
 }
