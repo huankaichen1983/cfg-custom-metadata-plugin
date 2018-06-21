@@ -3,10 +3,9 @@ package eu.cloudifacturing.www.nexus.internal.resources;
 import eu.cloudifacturing.www.nexus.internal.api.CustomMetadataXO;
 import eu.cloudifacturing.www.nexus.internal.resources.doc.CustomMetadataResourceDoc;
 import org.elasticsearch.index.query.BoolQueryBuilder;
-import org.elasticsearch.index.query.QueryBuilder;
+import org.elasticsearch.search.SearchHit;
 import org.sonatype.goodies.common.ComponentSupport;
 import org.sonatype.nexus.common.entity.DetachedEntityId;
-import org.sonatype.nexus.common.io.Hex;
 import org.sonatype.nexus.repository.Repository;
 import org.sonatype.nexus.repository.browse.BrowseService;
 import org.sonatype.nexus.repository.manager.RepositoryManager;
@@ -15,28 +14,28 @@ import org.sonatype.nexus.repository.search.SearchService;
 import org.sonatype.nexus.repository.storage.Asset;
 import org.sonatype.nexus.repository.storage.AssetEntityAdapter;
 import org.sonatype.nexus.repository.storage.AssetStore;
-import org.sonatype.nexus.rest.Page;
 import org.sonatype.nexus.rest.Resource;
 
-import javax.annotation.Nullable;
 import javax.inject.Inject;
 import javax.inject.Named;
 import javax.inject.Singleton;
 import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
 import java.util.Base64;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
-import static java.lang.Integer.parseInt;
+import static com.google.common.base.Preconditions.checkNotNull;
 import static java.lang.String.format;
-import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Optional.ofNullable;
+import static java.util.stream.Collectors.toList;
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 import static org.elasticsearch.index.query.QueryBuilders.boolQuery;
 import static org.elasticsearch.index.query.QueryBuilders.termQuery;
-import static org.sonatype.nexus.common.hash.HashAlgorithm.MD5;
-import static org.sonatype.nexus.repository.http.HttpStatus.NOT_ACCEPTABLE;
 import static org.sonatype.nexus.repository.http.HttpStatus.UNPROCESSABLE_ENTITY;
+import static org.sonatype.nexus.repository.search.DefaultComponentMetadataProducer.REPOSITORY_NAME;
 
 @Named
 @Singleton
@@ -132,10 +131,22 @@ public class CustomMetadataResource
     @GET
     @Path("/search/{key}")
     @Override
-    public Page<CustomMetadataXO> searchAssetByKeyValue(@PathParam("key") final String key, @QueryParam("value") final String value) {
+    public List<CustomMetadataXO> searchAssetByKeyValue(@PathParam("key") final String key, @QueryParam("value") final String value) {
         BoolQueryBuilder query = boolQuery();
-        query.filter(termQuery(key, value));
-        return null;
+        query.must(termQuery("assets.attributes.metadata."+key, value));
+
+        Iterable<SearchHit> hits = searchService.browseUnrestricted(query);
+        System.out.println("Search by Key Value : " + key +"-" + value +"-" + hits.toString());
+        hits.forEach(hit->{
+            List<Map<String,Object>> assets = (List<Map<String,Object>>) hit.getSource().get("assets");
+            assets.forEach(asset ->{
+                System.out.println(asset.get("name").toString());
+            });
+        });
+
+        return StreamSupport.stream(hits.spliterator(),false)
+                .flatMap(hit -> extractAssets(hit,key,value))
+                .collect(toList());
     }
 
     private Asset getAsset(final String id, final Repository repository, final DetachedEntityId entityId){
@@ -157,5 +168,37 @@ public class CustomMetadataResource
                 .orElseThrow(()->new NotFoundException("Unable to locate repository with id " + id));
 
         return repository;
+    }
+
+    private Stream<CustomMetadataXO> extractAssets(final SearchHit componentHit, final String key, final String value){
+        Map<String, Object> componentMap = checkNotNull(componentHit.getSource());
+        Repository repository = searchUtils.getRepository((String) componentMap.get(REPOSITORY_NAME));
+        List<Map<String,Object>> assets = (List<Map<String,Object>>) componentMap.get("assets");
+        if(assets == null){
+            return Stream.empty();
+        }
+        return assets.stream()
+                .filter(assetMap ->
+                    filterAsset(assetMap,key,value)
+                )
+                .map(asset -> CustomMetadataXO.fromElasticSearchMap(asset,repository));
+    }
+
+    private boolean filterAsset(final Map<String, Object> assetMap, final String key, final String value){
+        Map attributes = (Map) assetMap.get("attributes");
+        if(attributes.containsKey("metadata")) {
+            Map metadatas = (Map) attributes.get("metadata");
+            if (metadatas.containsKey(key)) {
+                if (metadatas.get(key).equals(value)) {
+                    return true;
+                } else {
+                    return false;
+                }
+            } else {
+                return false;
+            }
+        } else {
+            return false;
+        }
     }
 }

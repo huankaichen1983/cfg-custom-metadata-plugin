@@ -10,6 +10,9 @@ import org.sonatype.nexus.repository.storage.Asset
 import javax.annotation.Nullable
 
 import static org.sonatype.nexus.common.entity.EntityHelper.id
+import static org.sonatype.nexus.repository.search.DefaultComponentMetadataProducer.ID
+import static org.sonatype.nexus.repository.search.DefaultComponentMetadataProducer.NAME
+import static org.sonatype.nexus.repository.storage.Asset.CHECKSUM
 
 @CompileStatic
 @Builder
@@ -18,6 +21,16 @@ import static org.sonatype.nexus.common.entity.EntityHelper.id
 class CustomMetadataXO {
     String id
 
+    String downloadUrl
+
+    String path
+
+    String repository
+
+    String format
+
+    Map checksum
+
     Map metadatas
 
     static CustomMetadataXO fromAssetMetadata(final Asset asset, @Nullable final Repository repository){
@@ -25,7 +38,25 @@ class CustomMetadataXO {
 
         return builder()
         .id(getID(repository,internalId))
+        .downloadUrl(repository.url + '/' + asset.name())
+        .repository(repository.name)
+        .checksum(asset.attributes().child(CHECKSUM).backing())
+        .format(repository.format.value)
         .metadatas(asset.attributes().child("metadata").backing())
+        .build()
+    }
+
+    static CustomMetadataXO fromElasticSearchMap(final Map map, final Repository repository){
+        String internalId = (String) map.get(ID)
+
+        return builder()
+        .id(getID(repository,internalId))
+        .path((String) map.get(NAME))
+        .downloadUrl(repository.url + '/' + (String) map.get(NAME))
+        .repository(repository.name)
+        .checksum((Map) map.get("attributes",[:])[CHECKSUM])
+        .format(repository.format.value)
+        .metadatas((Map) map.get("attributes",[:])["metadata"])
         .build()
     }
 
