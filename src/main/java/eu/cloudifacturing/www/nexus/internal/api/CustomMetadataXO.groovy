@@ -4,9 +4,10 @@ import groovy.transform.CompileStatic
 import groovy.transform.EqualsAndHashCode
 import groovy.transform.ToString
 import groovy.transform.builder.Builder
-import org.sonatype.nexus.common.collect.NestedAttributesMap
 import org.sonatype.nexus.repository.Repository
 import org.sonatype.nexus.repository.storage.Asset
+
+import javax.annotation.Nullable
 
 import static org.sonatype.nexus.common.entity.EntityHelper.id
 
@@ -19,7 +20,7 @@ class CustomMetadataXO {
 
     Map metadatas
 
-    static CustomMetadataXO fromAssetMetadata(final Asset asset, final Repository repository){
+    static CustomMetadataXO fromAssetMetadata(final Asset asset, @Nullable final Repository repository){
         String internalId = id(asset).getValue()
 
         return builder()

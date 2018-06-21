@@ -4,6 +4,7 @@ import eu.cloudifacturing.www.nexus.internal.api.CustomMetadataXO;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
+import org.sonatype.nexus.rest.Page;
 
 import java.util.Map;
 
@@ -17,4 +18,8 @@ public interface CustomMetadataResourceDoc {
 
     @ApiOperation("Delete artifact metadatas by ID & Key")
     CustomMetadataXO deleteCustomMetadataByIdKey(@ApiParam(value = "ID of the artifact") final String id, final String key);
+
+    @ApiOperation("Search artifacts by custom metadata key&value")
+    Page<CustomMetadataXO> searchAssetByKeyValue(@ApiParam(value = "Metadata key") final String key, final String value);
+
 }
