@@ -19,6 +19,9 @@ public interface CustomMetadataResourceDoc {
     @ApiOperation("Delete artifact metadatas by ID & Key")
     CustomMetadataXO deleteCustomMetadataByIdKey(@ApiParam(value = "ID of the artifact") final String id, final String key);
 
+    @ApiOperation("Delete artifact metadatas by ID & Key")
+    CustomMetadataXO deleteAllCustomMetadataById(@ApiParam(value = "ID of the artifact") final String id);
+
     @ApiOperation("Search artifacts by custom metadata key&value")
     Page<CustomMetadataXO> searchAssetByKeyValue(@ApiParam(value = "Metadata key") final String key, final String value);
 

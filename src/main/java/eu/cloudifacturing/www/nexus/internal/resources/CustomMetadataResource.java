@@ -47,7 +47,7 @@ public class CustomMetadataResource
     extends ComponentSupport
     implements Resource, CustomMetadataResourceDoc {
 
-    public static final String RESOURCE_URI = "metadata";
+    public static final String RESOURCE_URI = "metadatas";
 
     private final SearchUtils searchUtils;
     private final SearchService searchService;
@@ -115,6 +115,20 @@ public class CustomMetadataResource
         return CustomMetadataXO.fromAssetMetadata(asset,repository);
     }
 
+    @Override
+    @DELETE
+    @Path("/asset/{id}/all")
+    public CustomMetadataXO deleteAllCustomMetadataById(@PathParam("id") final String id) {
+        String decoded = new String(Base64.getUrlDecoder().decode(id));
+        String assetId = decoded.split(":")[1];
+        String repositoryId = decoded.split(":")[0];
+        Repository repository = getRepository(repositoryId);
+        Asset asset = getAsset(id, repository, new DetachedEntityId(assetId));
+        asset.attributes().remove("metadata");
+        assetStore.save(asset);
+        return CustomMetadataXO.fromAssetMetadata(asset,repository);
+    }
+
     @GET
     @Path("/search/{key}")
     @Override
@@ -143,27 +157,5 @@ public class CustomMetadataResource
                 .orElseThrow(()->new NotFoundException("Unable to locate repository with id " + id));
 
         return repository;
-    }
-
-    private int decode(@Nullable final String continuationToken, final QueryBuilder query) {
-        if (continuationToken == null) {
-            return 0;
-        }
-        else {
-            String decoded = new String(Hex.decode(continuationToken), UTF_8);
-            String[] decodedParts = decoded.split(":");
-            if (decodedParts.length != 2) {
-                throw new WebApplicationException(format("Unable to parse token %s", continuationToken), NOT_ACCEPTABLE);
-            }
-            if (!decodedParts[1].equals(getHashCode(query))) {
-                throw new WebApplicationException(
-                        format("Continuation token %s does not match this query", continuationToken), NOT_ACCEPTABLE);
-            }
-            return parseInt(decodedParts[0]);
-        }
-    }
-
-    private String getHashCode(final QueryBuilder query) {
-        return MD5.function().hashString(query.toString(), UTF_8).toString();
     }
 }
