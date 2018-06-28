@@ -2,6 +2,7 @@ package eu.cloudifacturing.www.nexus.internal.resources;
 
 import eu.cloudifacturing.www.nexus.internal.api.CustomMetadataXO;
 import eu.cloudifacturing.www.nexus.internal.resources.doc.CustomMetadataResourceDoc;
+import org.apache.shiro.authz.AuthorizationException;
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.search.SearchHit;
 import org.sonatype.goodies.common.ComponentSupport;
@@ -11,10 +12,13 @@ import org.sonatype.nexus.repository.browse.BrowseService;
 import org.sonatype.nexus.repository.manager.RepositoryManager;
 import org.sonatype.nexus.repository.rest.SearchUtils;
 import org.sonatype.nexus.repository.search.SearchService;
+import org.sonatype.nexus.repository.security.ContentPermissionChecker;
+import org.sonatype.nexus.repository.security.VariableResolverAdapterManager;
 import org.sonatype.nexus.repository.storage.Asset;
 import org.sonatype.nexus.repository.storage.AssetEntityAdapter;
 import org.sonatype.nexus.repository.storage.AssetStore;
 import org.sonatype.nexus.rest.Resource;
+import org.sonatype.nexus.security.BreadActions;
 
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -46,7 +50,7 @@ public class CustomMetadataResource
     extends ComponentSupport
     implements Resource, CustomMetadataResourceDoc {
 
-    public static final String RESOURCE_URI = "metadatas";
+    public static final String RESOURCE_URI = "metadata";
 
     private final SearchUtils searchUtils;
     private final SearchService searchService;
@@ -54,6 +58,8 @@ public class CustomMetadataResource
     private final RepositoryManager repositoryManager;
     private final AssetEntityAdapter assetEntityAdapter;
     private final AssetStore assetStore;
+    private final ContentPermissionChecker contentPermissionChecker;
+    private final VariableResolverAdapterManager variableResolverAdapterManager;
 
     @Inject
     public CustomMetadataResource(final SearchUtils searchUtils,
@@ -61,7 +67,9 @@ public class CustomMetadataResource
                                   final BrowseService browseService,
                                   final RepositoryManager repositoryManager,
                                   final AssetEntityAdapter assetEntityAdapter,
-                                  final AssetStore assetStore
+                                  final AssetStore assetStore,
+                                  final ContentPermissionChecker contentPermissionChecker,
+                                  final VariableResolverAdapterManager variableResolverAdapterManager
                                   ){
         this.searchUtils = searchUtils;
         this.searchService = searchService;
@@ -69,6 +77,8 @@ public class CustomMetadataResource
         this.repositoryManager = repositoryManager;
         this.assetEntityAdapter = assetEntityAdapter;
         this.assetStore = assetStore;
+        this.contentPermissionChecker = contentPermissionChecker;
+        this.variableResolverAdapterManager = variableResolverAdapterManager;
     }
 
     @GET
@@ -93,6 +103,11 @@ public class CustomMetadataResource
         String repositoryId = decoded.split(":")[0];
         Repository repository = getRepository(repositoryId);
         Asset asset = getAsset(id, repository, new DetachedEntityId(assetId));
+
+        if(!contentPermissionChecker.isPermitted(repository.getName(),repository.getFormat().toString(),BreadActions.EDIT,variableResolverAdapterManager.get(repository.getFormat().toString()).fromAsset(asset))){
+            throw new AuthorizationException();
+        }
+
         metadata.forEach((k,v)->{
             asset.attributes().child("metadata").set(k,v);
         });
@@ -109,6 +124,9 @@ public class CustomMetadataResource
         String repositoryId = decoded.split(":")[0];
         Repository repository = getRepository(repositoryId);
         Asset asset = getAsset(id, repository, new DetachedEntityId(assetId));
+        if(!contentPermissionChecker.isPermitted(repository.getName(),repository.getFormat().toString(),BreadActions.DELETE,variableResolverAdapterManager.get(repository.getFormat().toString()).fromAsset(asset))){
+            throw new AuthorizationException();
+        }
         asset.attributes().child("metadata").remove(key);
         assetStore.save(asset);
         return CustomMetadataXO.fromAssetMetadata(asset,repository);
@@ -123,6 +141,9 @@ public class CustomMetadataResource
         String repositoryId = decoded.split(":")[0];
         Repository repository = getRepository(repositoryId);
         Asset asset = getAsset(id, repository, new DetachedEntityId(assetId));
+        if(!contentPermissionChecker.isPermitted(repository.getName(),repository.getFormat().toString(),BreadActions.DELETE,variableResolverAdapterManager.get(repository.getFormat().toString()).fromAsset(asset))){
+            throw new AuthorizationException();
+        }
         asset.attributes().remove("metadata");
         assetStore.save(asset);
         return CustomMetadataXO.fromAssetMetadata(asset,repository);

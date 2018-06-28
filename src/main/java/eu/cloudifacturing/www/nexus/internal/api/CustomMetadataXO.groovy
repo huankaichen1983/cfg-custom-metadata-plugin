@@ -31,7 +31,7 @@ class CustomMetadataXO {
 
     Map checksum
 
-    Map metadatas
+    Map metadata
 
     static CustomMetadataXO fromAssetMetadata(final Asset asset, @Nullable final Repository repository){
         String internalId = id(asset).getValue()
@@ -42,7 +42,7 @@ class CustomMetadataXO {
         .repository(repository.name)
         .checksum(asset.attributes().child(CHECKSUM).backing())
         .format(repository.format.value)
-        .metadatas(asset.attributes().child("metadata").backing())
+        .metadata(asset.attributes().child("metadata").backing())
         .build()
     }
 
@@ -56,7 +56,7 @@ class CustomMetadataXO {
         .repository(repository.name)
         .checksum((Map) map.get("attributes",[:])[CHECKSUM])
         .format(repository.format.value)
-        .metadatas((Map) map.get("attributes",[:])["metadata"])
+        .metadata((Map) map.get("attributes",[:])["metadata"])
         .build()
     }
 
